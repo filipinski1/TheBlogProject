@@ -2,23 +2,36 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using TheBlogProject.Data;
 using TheBlogProject.Models;
-
+using TheBlogProject.Services;
+using TheBlogProject.Enums;
+using TheBlogProject.ViewModels;
 namespace TheBlogProject.Controllers
 {
     public class PostsController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly ISlugService _slugService;
+        private readonly IImageService _imageService;
+        private readonly UserManager<BlogUser> _userManager;
+    
 
-        public PostsController(ApplicationDbContext context)
+        public PostsController(ApplicationDbContext context, ISlugService slugService, IImageService imageService, UserManager<BlogUser> userManager)
         {
             _context = context;
+            _slugService = slugService;
+            _imageService = imageService;
+            _userManager = userManager;
         }
 
+
+       
         // GET: Posts
         public async Task<IActionResult> Index()
         {
@@ -26,10 +39,21 @@ namespace TheBlogProject.Controllers
             return View(await applicationDbContext.ToListAsync());
         }
 
-        // GET: Posts/Details/5
-        public async Task<IActionResult> Details(int? id)
+        
+        public async Task<IActionResult> BlogPostIndex(int? id)
         {
-            if (id == null)
+            if(id is null)
+            {
+                return NotFound();
+
+            }
+            var posts = _context.Posts.Where(p => p.BlogId == id).ToList();
+            return View("Index", posts);
+        }
+        // GET: Posts/Details/5
+        public async Task<IActionResult> Details(string slug)
+        {
+            if (string.IsNullOrEmpty(slug))
             {
                 return NotFound();
             }
@@ -37,7 +61,8 @@ namespace TheBlogProject.Controllers
             var post = await _context.Posts
                 .Include(p => p.Blog)
                 .Include(p => p.BlogUser)
-                .FirstOrDefaultAsync(m => m.Id == id);
+                .Include(p => p.Tags)
+                .FirstOrDefaultAsync(m => m.Slug == slug);
             if (post == null)
             {
                 return NotFound();
@@ -59,13 +84,65 @@ namespace TheBlogProject.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("BlogId,Title,Abstract,Content,ReadyStatus,Image")] Post post)
+        public async Task<IActionResult> Create([Bind("BlogId,Title,Abstract,Content,ReadyStatus,Image")] Post post, List<string> tagValues)
         {
             if (ModelState.IsValid)
             {
                 post.Created = DateTime.Now;
+                var authorId = _userManager.GetUserId(User);
+                post.BlogUserId = authorId;
+
+                //Use the _imageService to store the incoming user specified image
+                post.ImageData = await _imageService.EncodeImageAsync(post.Image);
+                post.ContentType = _imageService.ContentType(post.Image);
+
+
+                //Create the slug and determine if it is unique
+
+                var slug = _slugService.UrlFriendly(post.Title);
+
+                //Create a variable to store whetjer an error has occured
+                var validationError = false;
+                if (string.IsNullOrEmpty(slug))
+                {
+                    validationError = true;
+                    ModelState.AddModelError("", "The Title you provided cannot be used as it an empty slug. ");
+
+                }
+
+                else if (!_slugService.IsUnique(slug))
+                {
+                    validationError = true;
+                    ModelState.AddModelError("Title", "The Title you provided cannot be used as it results in a duplicate slug.");
+                }
+
+
+                else if (slug.Contains("test"))
+                {
+                    validationError = true;
+                    ModelState.AddModelError("", "Uh-oh are you testing again??.");
+                    ModelState.AddModelError("Title", "The Title cannot contain the word test");
+
+                }
+                if (validationError)
+                {
+                    ViewData["TagValues"] = string.Join(",", tagValues);
+                    return View(post);
+                }
+
+                post.Slug = slug;
 
                 _context.Add(post);
+                await _context.SaveChangesAsync();
+                foreach (var tagText in tagValues)
+                {
+                    _context.Add(new Tag()
+                    {
+                        PostId = post.Id,
+                        BlogUserId = authorId,
+                        Text = tagText
+                    });
+                }
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
@@ -87,6 +164,7 @@ namespace TheBlogProject.Controllers
                 return NotFound();
             }
             ViewData["BlogId"] = new SelectList(_context.Blogs, "Id", "", post.BlogId);
+            ViewData["TagValues"] = string.Join(",", post.Tags.Select(t => t.Text));
             return View(post);
         }
 
@@ -95,7 +173,7 @@ namespace TheBlogProject.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,BlogId,Title,Abstract,Content,ReadyStatus,Image")] Post post)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,BlogId,Title,Abstract,Content,ReadyStatus")] Post post, IFormFile newImage, List<string> tagValues)
         {
             if (id != post.Id)
             {
@@ -106,9 +184,48 @@ namespace TheBlogProject.Controllers
             {
                 try
                 {
-                    post.Updated = DateTime.Now;
+                    var newPost = await _context.Posts.Include(p => p.Tags).FirstOrDefaultAsync(p => p.Id == post.Id);
 
-                    _context.Update(post);
+                    newPost.Updated = DateTime.Now;
+                    newPost.Title = post.Title;
+                    newPost.Abstract = post.Abstract;
+                    newPost.Content = post.Content;
+                    newPost.ReadyStatus = post.ReadyStatus;
+
+                    var newSlug = _slugService.UrlFriendly(post.Title);
+                    if (newSlug != newPost.Slug)
+                    {
+                        if (_slugService.IsUnique(newSlug))
+                        {
+                            newPost.Title = post.Title;
+                            newPost.Slug = newSlug;
+                        }
+                        else
+                        {
+                            ModelState.AddModelError("Title", "This Title cannot buesed as it results in a duplicate slug");
+                            ViewData["TagValues"] = string.Join(",", post.Tags.Select(t => t.Text));
+                            return View(post);
+                        }
+                    }
+
+                    if (newImage is not null)
+                    {
+                        newPost.ImageData = await _imageService.EncodeImageAsync(newImage);
+                        newPost.ContentType = _imageService.ContentType(newImage);
+                    }
+
+                    //Remove all TgA Previously associated with this Post
+                    _context.Tags.RemoveRange(newPost.Tags);
+
+                    foreach (var tagText in tagValues)
+                        _context.Add(new Tag()
+                        {
+                            PostId = post.Id,
+                            BlogUserId = newPost.BlogUserId,
+                            Text = tagText
+                        });
+
+
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)

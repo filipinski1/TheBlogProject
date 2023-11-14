@@ -13,6 +13,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using TheBlogProject.Data;
 using TheBlogProject.Models;
+using TheBlogProject.Services;
+using TheBlogProject.ViewModels;
+
 
 namespace TheBlogProject
 {
@@ -28,9 +31,7 @@ namespace TheBlogProject
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            //  services.AddDbContext<ApplicationDbContext>(options =>
-            //     options.UseSqlServer(
-            //       Configuration.GetConnectionString("DefaultConnection")));
+
             services.AddDbContext<ApplicationDbContext>(options =>
                options.UseNpgsql(
                    Configuration.GetConnectionString("DefaultConnection")));
@@ -38,15 +39,27 @@ namespace TheBlogProject
 
             services.AddDatabaseDeveloperPageExceptionFilter();
 
-            // services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-            //   .AddEntityFrameworkStores<ApplicationDbContext>();
-
             services.AddIdentity<BlogUser, IdentityRole>(options => options.SignIn.RequireConfirmedAccount = true)
                .AddDefaultUI()
                .AddDefaultTokenProviders()
                 .AddEntityFrameworkStores<ApplicationDbContext>();
             services.AddControllersWithViews();
             services.AddRazorPages();
+
+
+            //register my costom DataService class
+            services.AddScoped<DataService>();
+
+            //Register a preconfigured instance of the MailSettingd class
+            services.Configure<MailSettings>(Configuration.GetSection("MailSettings"));
+            services.AddScoped<IBlogEmailSender, EmailService>();
+
+            //register our image service
+            services.AddScoped<IImageService, BasicImageService>();
+
+            //Register the slug service
+            services.AddScoped<ISlugService, BasicSlugService>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -74,8 +87,14 @@ namespace TheBlogProject
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllerRoute(
+                    name: "SlugRoute",
+                    pattern: "BlogPosts/UrlFriendly/{slug}",
+                    defaults: new { controller = "Posts", action = "Details" });
+
+                endpoints.MapControllerRoute(
                     name: "default",
                     pattern: "{controller=Home}/{action=Index}/{id?}");
+
                 endpoints.MapRazorPages();
             });
         }

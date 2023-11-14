@@ -13,11 +13,13 @@ namespace TheBlogProject.Models
         [StringLength(50, ErrorMessage = " the {0} must be at least {2} and no more than {1} characters long", MinimumLength = 2)]
         [Display(Name = "First Name")]
         public string FirstName { get; set; }
+
         [Required]
         [StringLength(50, ErrorMessage = " the {0} must be at least {2} and no more than {1} characters long", MinimumLength = 2)]
-        [Display(Name = "Last Name")]
+        [Display(Name = "Last Name")]                           
         public string LastName { get; set; }
-        public byte[] Image { get; set; }
+
+        public byte[] ImageData { get; set; }
         public string ContentType { get; set; }
         [StringLength(100, ErrorMessage = " the {0} must be at least {2} and no more than {1} characters long", MinimumLength = 2)]
 
@@ -37,8 +39,6 @@ namespace TheBlogProject.Models
 
         public virtual ICollection<Blog> Blogs { get; set; } = new HashSet<Blog>();
         public virtual ICollection<Post> Posts { get; set; } = new HashSet<Post>();
-
-
-
+        public string DisplayName { get; internal set; }
     }
 }

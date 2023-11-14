@@ -16,7 +16,7 @@ namespace TheBlogProject.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("Relational:MaxIdentifierLength", 63)
-                .HasAnnotation("ProductVersion", "5.0.16")
+                .HasAnnotation("ProductVersion", "5.0.17")
                 .HasAnnotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn);
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -203,6 +203,9 @@ namespace TheBlogProject.Data.Migrations
                     b.Property<string>("ContentType")
                         .HasColumnType("text");
 
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("text");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -219,7 +222,7 @@ namespace TheBlogProject.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<byte[]>("Image")
+                    b.Property<byte[]>("ImageData")
                         .HasColumnType("bytea");
 
                     b.Property<string>("LastName")
