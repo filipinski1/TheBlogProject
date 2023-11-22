@@ -1,5 +1,8 @@
 ﻿@using TheBlogProject.Models
-@model List<TheBlogProject.Models.Blog>
+@using X.PagedList
+@using X.PagedList.Mvc.Core
+@using X.PagedList.Web.Common
+@model IPagedList<Blog>
 @{
     ViewData["Title"] = "Home Page";
 }
@@ -16,7 +19,7 @@
                         </h2>
                         <h3 class="post-subtitle">
                             @blog.Description
-                            </h3>
+                        </h3>
                     </a>
                     <p class="post-meta">
                         Authored by
@@ -24,50 +27,31 @@
                         on @blog.Created.ToString("MMM dd, yyyy")
                     </p>
                 </div>
-                <!-- Divider-->
-                <hr class="my-4" />
-                <!-- Post preview-->
-                <div class="post-preview">
-                    <a href="post.html"><h2 class="post-title">I believe every human has a finite number of heartbeats. I don't intend to waste any of mine.</h2></a>
-                    <p class="post-meta">
-                        Posted by
-                        <a href="#!">Start Bootstrap</a>
-                        on September 18, 2023
-                    </p>
-                </div>
-                <!-- Divider-->
-                <hr class="my-4" />
-                <!-- Post preview-->
-                <div class="post-preview">
-                    <a href="post.html">
-                        <h2 class="post-title">Science has not yet mastered prophecy</h2>
-                        <h3 class="post-subtitle">We predict too much for the next year and yet far too little for the next ten.</h3>
-                    </a>
-                    <p class="post-meta">
-                        Posted by
-                        <a href="/css/icons.cs">Start Bootstrap</a>
-                        on August 24, 2023
-                    </p>
-                </div>
-                <!-- Divider-->
-                <hr class="my-4" />
-                <!-- Post preview-->
-                <div class="post-preview">
-                    <a href="post.html">
-                        <h2 class="post-title">Failure is not an option</h2>
-                        <h3 class="post-subtitle">Many say exploration is part of our destiny, but it’s actually our duty to future generations.</h3>
-                    </a>
-                    <p class="post-meta">
-                        Posted by
-                        <a href="#!">Start Bootstrap</a>
-                        on July 8, 2023
-                    </p>
-                </div>
-                <!-- Divider-->
-                <hr class="my-4" />
+
+                <hr />
             }
             <!-- Pager-->
-            <div class="d-flex justify-content-end mb-4"><a class="btn btn-primary text-uppercase" href="#!">Older Posts →</a></div>
+            <div class="clearfix">
+                <a class="btn btn-primary float-right" href="#">Older Posts &rarr;</a>
+                </div>
         </div>
     </div>
-</div>          
+</div>
+
+
+<!-- Add Paging control here -->
+<div class="row">
+    <div class="col h3">
+        Page @(Model.PageCount < Model.PageNumber ? 0 : Model.PageNumber) of @Model.PageCount
+    </div>
+</div>
+<div class="row">
+    <div class="col">
+        @Html.PagedListPager(Model, page => Url.Action("Index", new { page = page }),
+            new PagedListRenderOptions
+            {
+                LiElementClasses = new string[] {"page-item"},
+                PageClasses = new string[] {"page-link"}
+            })
+    </div>
+</div>
