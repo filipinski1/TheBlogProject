@@ -15,6 +15,7 @@ namespace TheBlogProject.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<BlogUser> _userManager;
+
         public CommentsController(ApplicationDbContext context, UserManager<BlogUser> userManager)
         {
             _context = context;
@@ -22,7 +23,6 @@ namespace TheBlogProject.Controllers
         }
 
         // GET: Comments
-
         public async Task<IActionResult> OriginalIndex()
         {
             var originalComments = await _context.Comments.ToListAsync();
@@ -35,16 +35,10 @@ namespace TheBlogProject.Controllers
             return View("Index", moderatedComments);
         }
 
-
-
-
-
-
         //public async Task<IActionResult> DeletedIndex()
         //{
-        //Use my soft delete bool 
+        //Use soft delete bool
         //}
-
 
         public async Task<IActionResult> Index()
         {
@@ -78,6 +72,10 @@ namespace TheBlogProject.Controllers
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
+            //ViewData["BlogUserId"] = new SelectList(_context.Users, "Id", "Id", comment.BlogUserId);
+            //ViewData["ModeratorId"] = new SelectList(_context.Users, "Id", "Id", comment.ModeratorId);
+            //ViewData["PostId"] = new SelectList(_context.Posts, "Id", "Abstract", comment.PostId);
 
             return View(comment);
         }
@@ -118,10 +116,9 @@ namespace TheBlogProject.Controllers
                 var newComment = await _context.Comments.Include(c => c.Post).FirstOrDefaultAsync(c => c.Id == comment.Id);
                 try
                 {
-
-                    newComment.Body= comment.Body;
+                    newComment.Body = comment.Body;
                     newComment.Updated = DateTime.Now;
-                   
+
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
@@ -137,7 +134,9 @@ namespace TheBlogProject.Controllers
                 }
                 return RedirectToAction("Details", "Posts", new { slug = newComment.Post.Slug }, "commentSection");
             }
-         
+            //ViewData["BlogUserId"] = new SelectList(_context.Users, "Id", "Id", comment.BlogUserId);
+            //ViewData["ModeratorId"] = new SelectList(_context.Users, "Id", "Id", comment.ModeratorId);
+            //ViewData["PostId"] = new SelectList(_context.Posts, "Id", "Abstract", comment.PostId);
             return View(comment);
         }
 
