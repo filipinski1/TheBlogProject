@@ -55,16 +55,23 @@ namespace TheBlogProject.Controllers
 
         public async Task<IActionResult> BlogPostIndex(int? id, int? page)
         {
-            var pageNumber = page ?? 1;
-            var pageSize = 5;
+            if (id is null)
+            {
+                return NotFound();
+            }
 
-            var blogs = await _context.Posts
-                .Where(p => p.BlogId == id)
+            var pageNumber = page ?? 1;
+            var pageSize = 6;
+
+            //var posts = _context.Posts.Where(p => p.BlogId == id).ToList();
+            var posts = await _context.Posts
+                .Where(p => p.BlogId == id && p.ReadyStatus == ReadyStatus.ProductionReady)
                 .OrderByDescending(p => p.Created)
                 .ToPagedListAsync(pageNumber, pageSize);
 
-            return View(blogs);
+            return View(posts);
         }
+        // GET: Posts/Details/5
         // GET: Posts/Details/5
         public async Task<IActionResult> Details(string slug)
         {
@@ -74,21 +81,33 @@ namespace TheBlogProject.Controllers
             }
 
             var post = await _context.Posts
-                .Include(p => p.Blog)
+                //.Include(p => p.Blog)
                 .Include(p => p.BlogUser)
                 .Include(p => p.Tags)
                 .Include(p => p.Comments)
                 .ThenInclude(c => c.BlogUser)
+                .Include(p => p.Comments)
+                .ThenInclude(c => c.Moderator)
                 .FirstOrDefaultAsync(m => m.Slug == slug);
-
             if (post == null)
             {
                 return NotFound();
             }
 
-            return View(post);
-        }
+            // new var dataVM
+            var dataVM = new PostDetailViewModel()
+            {
+                Post = post,
+                Tags = _context.Tags
+                                .Select(t => t.Text.ToLower())
+                                .Distinct().ToList()
+            };
 
+            ViewData["HeaderImage"] = _imageService.DecodeImage(post.ImageData, post.ContentType);
+            ViewData["MainText"] = post.Title;
+            ViewData["SubText"] = post.Abstract;
+            return View(dataVM);
+        }
         // GET: Posts/Create
         public IActionResult Create()
         {
